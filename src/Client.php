@@ -729,7 +729,8 @@ class Client extends GuzzleClient
      *
      * @param int       $id     Campaign ID
      * @param int|array $leads  Either a single lead ID or an array of lead IDs
-     * @param array     $tokens Key value array of tokens to send new values for.
+     * @param array     $tokens Key value array of tokens without curly braces. Token names must be previously created in Marketo.
+     *                          @example: ['my.subject' => 'FooBar Email Subject', 'my.replyTo' => 'noreply@test.com']
      * @param array     $args
      * @param bool      $returnRaw
      *
@@ -746,7 +747,7 @@ class Client extends GuzzleClient
         }, (array) $leads));
 
         if (!empty($tokens)) {
-            $args['input']['tokens'] = $tokens;
+            $args['input']['tokens'] = $this->formatTokens($tokens);
         }
 
         return $this->getResult('requestCampaign', $args, false, $returnRaw);
@@ -757,7 +758,8 @@ class Client extends GuzzleClient
      *
      * @param int         $id      Campaign ID
      * @param \DateTime   $runAt   The time to run the campaign. If not provided, campaign will be run in 5 minutes.
-     * @param array       $tokens  Key value array of tokens to send new values for.
+     * @param array       $tokens  Key value array of tokens without curly braces. Token names must be previously created in Marketo.
+     *                             @example: ['my.subject' => 'FooBar Email Subject', 'my.replyTo' => 'noreply@test.com']
      * @param array       $args
      * @param bool        $returnRaw
      *
@@ -774,10 +776,30 @@ class Client extends GuzzleClient
         }
 
         if (!empty($tokens)) {
-            $args['input']['tokens'] = $tokens;
+            $args['input']['tokens'] = $this->formatTokens($tokens);
         }
 
         return $this->getResult('scheduleCampaign', $args, false, $returnRaw);
+    }
+
+    /**
+     * Reformat key/value email campaign token pairs to individual array entries with 'name' and 'value' keys.
+     *
+     * @param array $tokens
+     * @return array
+     */
+    private function formatTokens(array $tokens)
+    {
+        $newFormat = [];
+
+        foreach ($tokens as $name => $value) {
+            $newFormat[] = [
+                'name' => (string) $name,
+                'value' => $value
+            ];
+        }
+
+        return $newFormat;
     }
 
     /**
