@@ -45,11 +45,11 @@ class Client extends GuzzleClient
      * @var array
      */
     private $marketoObjects = array(
-      'Leads' => 'leads',
-      'Companies' => 'companies',
-      'Opportunities' => 'opportunities',
-      'Opportunities Roles' => 'opportunities/roles',
-      'Sales Persons' => 'salespersons'
+        'Leads' => 'leads',
+        'Companies' => 'companies',
+        'Opportunities' => 'opportunities',
+        'Opportunities Roles' => 'opportunities/roles',
+        'Sales Persons' => 'salespersons'
     );
 
     /**
@@ -376,7 +376,6 @@ class Client extends GuzzleClient
      * @throws \Exception
      *
      * @return GetLeadsResponse
-
      */
     private function createOrUpdateObjects($objectName, $action, $records, $dedupeBy, $args = array(), $returnRaw = false) {
         if (!isset($this->marketoObjects[$objectName])) {
@@ -722,6 +721,103 @@ class Client extends GuzzleClient
         $args['id'] = (array) $leads;
 
         return $this->getResult('deleteLead', $args, true, $returnRaw);
+    }
+
+    /**
+     * Delete one or more companies
+     *
+     * @param array       $records Array of arrays
+     * @param string      $deleteBy
+     * @param array       $args
+     * @param bool|false  $returnRaw
+     * @throws \Exception
+     *
+     * @link http://developers.marketo.com/rest-api/endpoint-reference/lead-database-endpoint-reference/#!/Companies/deleteCompaniesUsingPOST
+     *
+     * @return Response|string
+     */
+    public function deleteCompanies($records, $deleteBy = 'idField', $args = array(), $returnRaw = false) {
+        return $this->deleteObject('Companies', $records, $deleteBy, $args, $returnRaw);
+    }
+
+    /**
+     * Delete one or more opportunities
+     *
+     * @param array       $records Array of arrays
+     * @param string      $deleteBy
+     * @param array       $args
+     * @param bool|false  $returnRaw
+     * @throws \Exception
+     *
+     * @link http://developers.marketo.com/rest-api/endpoint-reference/lead-database-endpoint-reference/#!/Opportunities/deleteOpportunitiesUsingPOST
+     *
+     * @return Response|string
+     */
+    public function deleteOpportunities($records, $deleteBy = 'idField', $args = array(), $returnRaw = false) {
+        return $this->deleteObject('Opportunities', $records, $deleteBy, $args, $returnRaw);
+    }
+
+    /**
+     * Delete one or more opportunities roles
+     *
+     * @param array       $records Array of arrays
+     * @param string      $deleteBy
+     * @param array       $args
+     * @param bool|false  $returnRaw
+     * @throws \Exception
+     *
+     * @link http://developers.marketo.com/rest-api/endpoint-reference/lead-database-endpoint-reference/#!/Opportunities/deleteOpportunityRolesUsingPOST
+     *
+     * @return Response|string
+     */
+    public function deleteOpportunityRoles($records, $deleteBy = 'idField', $args = array(), $returnRaw = false) {
+        return $this->deleteObject('Opportunities Roles', $records, $deleteBy, $args, $returnRaw);
+    }
+
+    /**
+     * Delete one or more sales persons
+     *
+     * @param array       $records Array of arrays
+     * @param string      $deleteBy
+     * @param array       $args
+     * @param bool|false  $returnRaw
+     * @throws \Exception
+     *
+     * @link http://developers.marketo.com/rest-api/endpoint-reference/lead-database-endpoint-reference/#!/Sales_Persons/deleteSalesPersonUsingPOST
+     *
+     * @return Response|string
+     */
+    public function deleteSalesPersons($records, $deleteBy = 'idField', $args = array(), $returnRaw = false) {
+        return $this->deleteObject('Sales Persons', $records, $deleteBy, $args, $returnRaw);
+    }
+
+    /**
+     * Generic method to delete a Marketo record.
+     *
+     * @param string $objectName
+     * @param array $records
+     * @param string $deleteBy
+     * @param array $args
+     * @param bool|false $returnRaw
+     * @throws \Exception
+     *
+     * @return Response|string
+     */
+    private function deleteObject($objectName, $records, $deleteBy = 'idField', $args = array(), $returnRaw = false) {
+        if (!isset($this->marketoObjects[$objectName])) {
+            throw new \Exception('deleteObject() Expected parameter $objectName, to be a valid Marketo object '  . "but $objectName provided");
+        };
+
+        $deleteByParameters = array('idField', 'dedupeFields');
+        if (!in_array($deleteBy, $deleteByParameters)) {
+            throw new \Exception('deleteObject() Expected parameter $deleteBy to be a valid deleteBy parameter ' . "but $deleteBy provided");
+        }
+
+        $args['objectName'] = $this->marketoObjects[$objectName];
+        $args['deleteBy'] = $deleteBy;
+        $args['input'] = $records;
+
+        return $this->getResult('deleteObject', $args, false, $returnRaw);
     }
 
     /**
@@ -1109,11 +1205,12 @@ class Client extends GuzzleClient
      * Generic method to describe a Marketo object.
      *
      * @param string      $objectName
+     * @param array       $args
      * @param bool|false  $returnRaw
      * @return Response
      * @throws \Exception
      */
-    private function describeObject($objectName, $returnRaw = false) {
+    private function describeObject($objectName, $args = array(), $returnRaw = false) {
         if (!isset($this->marketoObjects[$objectName])) {
             throw new \Exception('describeObject() Expected parameter $objectName, to be a valid Marketo object '  . "but $objectName provided");
         };
