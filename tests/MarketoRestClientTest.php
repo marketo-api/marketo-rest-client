@@ -93,6 +93,41 @@ class MarketoSoapClientTest extends GuzzleTestCase {
         self::assertEquals($campaigns[0]['name'], $campaign[0]['name']);
     }
 
+    public function testRequestCampaign()
+    {
+        // Queue up a response
+        $this->getServer()->enqueue($this->generateResponses(200,[
+            '{"requestId":"577a#1582315ff88","result":[{"id":1234}],"success":true}',
+        ]));
+
+        // Run test
+        $client = $this->_getClient();
+        $response = $client->requestCampaign(1234, [11111, 22222], ['my.subject' => 'FooBar', 'my.body' => 'Blah!']);
+        $this->assertTrue($response->isSuccess());
+        $this->assertEquals([['id' => 1234]], $response->getResult());
+    }
+
+    public function testFormatTokens()
+    {
+        $client = $this->_getClient();
+        $tokens = ['my.subject' => 'FooBar', 'my.body' => 'Blah!'];
+        $privateReflector = function (\CSD\Marketo\Client $client) use ($tokens) {
+            return $client->formatTokens($tokens);
+        };
+        $test = \Closure::bind($privateReflector, null, $client);
+        $newFormat = $test($client);
+        $this->assertEquals([
+            [
+                'name' => 'my.subject',
+                'value' => 'FooBar'
+            ],
+            [
+                'name' => 'my.body',
+                'value' => 'Blah!'
+            ],
+        ], $newFormat);
+    }
+
     public function testGetLists() {
         // Campaign response json.
         $response_json = '{"requestId":"5e2c#157b132e104","result":[{"id":1,"name":"Foo","description":"Foo description","programName":"Foo program name","workspaceName":"Default","createdAt":"2016-05-05T16:37:00Z","updatedAt":"2016-05-19T17:27:41Z"}],"success":true}';
