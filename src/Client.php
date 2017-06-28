@@ -391,6 +391,31 @@ class Client extends GuzzleClient
         return $this->getResult('createOrUpdateObject', $args, false, $returnRaw);
     }
 
+  /**
+   * Create the given custom objects.
+   *
+   * @param string      $objectName
+   * @param string      $action     Should be createOnly, updateOnly, or createOrUpdate.
+   * @param array       $records    Array of arrays.
+   * @param string      $dedupeBy
+   * @param array       $args
+   * @param bool|false  $returnRaw
+   * @throws \Exception
+   *
+   * @return GetLeadsResponse
+   */
+  public function createOrUpdateCustomObjects($objectName, $action, $records, $dedupeBy = NULL, $args = array(), $returnRaw = false) {
+    $args['customObjectName'] = $objectName;
+    $args['action'] = $action;
+    $args['input'] = $records;
+
+    if (isset($dedupeBy)) {
+      $args['dedupeBy'] = $dedupeBy;
+    }
+
+    return $this->getResult('createOrUpdateCustomObject', $args, false, $returnRaw);
+  }
+
     /**
      * Create the given leads.
      *
