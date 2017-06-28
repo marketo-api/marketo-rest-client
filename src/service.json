@@ -298,6 +298,17 @@
             },
             "responseModel": "baseResponse",
             "responseClass": "CSD\\Marketo\\Response"
+        },
+        "createOrUpdateCustomObject": {
+            "httpMethod": "POST",
+            "uri": "/rest/v1/customobjects/{customObjectName}.json",
+            "parameters": {
+                "customObjectName": {"location": "uri"},
+                "action": {"location": "json"},
+                "input": {"location": "json"},
+                "dedupeBy": {"location": "json"}
+            },
+            "responseClass": "CSD\\Marketo\\Response\\GetCustomObjectsResponse"
         }
     },
     "models": {
