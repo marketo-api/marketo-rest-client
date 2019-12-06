@@ -2,10 +2,21 @@
     "name": "marketo-api/marketo-rest-client",
     "description": "A PHP client for the Marketo.com REST API",
     "license": "MIT",
+    "repositories": [
+        {
+            "type": "vcs",
+            "url": "https://github.com/neclimdul/oauth2-marketo.git"
+        }
+    ],
+    "minimum-stability": "dev",
+    "prefer-stable": true,
     "require": {
-        "php": ">=5.3.3",
-        "guzzle/guzzle": "~3.8",
-        "commerceguys/guzzle-oauth2-plugin": "~1.0"
+        "php": ">=7.0",
+        "ext-json": "*",
+        "guzzlehttp/guzzle": "^6.2.1",
+        "guzzlehttp/guzzle-services": "^1.1.3",
+        "softonic/guzzle-oauth2-middleware": "^1.2",
+        "kristenlk/oauth2-marketo": "master"
     },
     "replace": {
         "marketo-api/marketo-rest-client": "0.*"
@@ -16,6 +27,11 @@
     "autoload": {
         "psr-4": {
             "CSD\\Marketo\\": "src"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "CSD\\Marketo\\Tests\\": "tests"
         }
     },
     "authors": [

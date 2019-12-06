@@ -2,227 +2,297 @@
 
 namespace CSD\Marketo\Tests;
 
+use CSD\Marketo\Cache\CacheItem;
 use CSD\Marketo\Client;
-use CSD\Marketo\Response\GetActivityTypesResponse;
-use CSD\Marketo\Response\GetLeadActivityResponse;
-use Guzzle\Http\Message\Response;
-use Guzzle\Tests\GuzzleTestCase;
-use Guzzle\Tests\Service\Mock\Command\MockCommand;
+use CSD\Marketo\Response\AddCustomActivitiesResponse;
+use CSD\Marketo\Response\GetCampaignResponse;
+use CSD\Marketo\Response\GetCampaignsResponse;
+use CSD\Marketo\Response\GetLeadPartitionsResponse;
+use CSD\Marketo\Response\GetListResponse;
+use CSD\Marketo\Response\GetListsResponse;
+use CSD\Marketo\Response\GetPagingToken;
+use GuzzleHttp\Command\Command;
+use GuzzleHttp\Command\Result;
+use GuzzleHttp\Handler\MockHandler;
+use GuzzleHttp\Psr7\Request;
+use Psr\Cache\CacheItemPoolInterface;
+use Psr\Http\Message\RequestInterface;
 
 /**
  * @group marketo-rest-client
+ * @coversDefaultClass \CSD\Marketo\Client
  */
-class MarketoSoapClientTest extends GuzzleTestCase {
+class MarketoRestClientTest extends TestCase
+{
 
-    public function setUp()
-    {
-        parent::setUp();
+    /**
+     * @covers ::factory
+     */
+    public function testFactoryOauthRegistration() {
+        $data = [
+            'client_id' => 'test_id',
+            'client_secret' => 'test secret',
+            'marketo_client_id' => 'test munchkin client id',
+            'munchkin_id' => 'test munchkin id',
+        ];
+        // If things are working correctly, oauth would make a request to the
+        // token provider _outside_ of our stack. So we don't have a lot of
+        // ways to interact with it. We can bypass it by warming the cache and
+        // asserting that it is requested though. The token ID is a MD5 of the
+        // request url so it will be static.
+        $cache = $this->prophesize(CacheItemPoolInterface::class);
+        $cache_key = 'oauth2-token-9543291ffdf03537ce1540edbb55a4fa';
+        $cache_item = new CacheItem($cache_key, 'supersecuretoken', TRUE);
+        $cache->getItem($cache_key)
+            ->willReturn($cache_item)
+            ->shouldBeCalledOnce();
 
-        /** @var \CSD\Marketo\Client $client */
-        $client = $this->_getClient();
+        $client = Client::factory($data, $cache->reveal());
+        self::assertTrue($client instanceof \CSD\Marketo\Client);
 
-        // Queue up a response for getCampaigns as well as getCampaign (by ID).
-        $this->getServer()->enqueue($this->generateResponses(200, '{"requestId":"e6be#157b5944116","success":true,"nextPageToken":"OAPD51234567890KBPLTBBZIC7KKF5FR5Y2VQGENTYVAOZ7EF3YQ===="}', TRUE));
+        /** @var \GuzzleHttp\HandlerStack $stack */
+        $stack = $client->getHttpClient()->getConfig('handler');
+        $handler = new MockHandler();
+        $handler->append(function (RequestInterface $req, array $options) {
+            $this->assertEquals(['Bearer supersecuretoken'], $req->getHeader('Authorization'));
+        });
+        $stack->setHandler($handler);
+        $stack(new Request('GET', 'http://example.com/'), []);
+    }
 
-        $client->getPagingToken(date('c'));
+    public function provideBadFactoryConfig() {
+        return[
+            [[], '/Config is missing the following keys: .*/'],
+            [['client_id' => 'a'], '/Config is missing the following keys: .*/'],
+            [['client_id' => 'a', 'version' => 'a'], '/Config is missing the following keys: .*/'],
+            // This one is a little weird. A missing version looks like it would
+            // throw an error but the default logic will always insert something.
+            // [['client_id' => 'a', 'client_secret' => 'a'], '/Config is missing the following keys: .*/'],
+            [['client_id' => 'a', 'client_secret' => 'a', 'version' => 'a', 'activityDate' => ''], '/Must provide either a URL or Munchkin code\./'],
+        ];
     }
 
     /**
-     * Gets the marketo rest client.
-     *
-     * @return \CSD\Marketo\Client
+     * @covers ::factory
+     * @dataProvider provideBadFactoryConfig
      */
-    private function _getClient() {
-
-        static $client = FALSE;
-
-        if ($client instanceof Client) {
-            return $client;
-        }
-
-        $client = Client::factory([
-            'url' => $this->getServer()->getUrl(),
-            'client_id' => 'example_id',
-            'client_secret' => 'example_secret',
-            'munchkin_id' => 'example_munchkin_id',
-        ]);
-
-        return $client;
+    public function testFactoryBadConfig($config, $message) {
+        $this->setExpectedExceptionRegExp(\InvalidArgumentException::class, $message);
+        Client::factory($config);
     }
 
-    public function testConstructor() {
+    /**
+     * @covers ::factory
+     */
+    public function testFactoryOauthClientConfig() {
+        $this->markTestIncomplete('It is difficult to test this configuration as it is stored deep in the middleware stack.');
 
-        $client = $this->_getClient();
-
-        $config = $client->getConfig()->getAll();
-
-
-        self::assertNotEmpty($config['client_id'], 'The `marketo_client_id` environment variable is empty.');
-        self::assertNotEmpty($config['client_secret'], 'The `marketo_client_secret` environment variable is empty.');
-        self::assertNotEmpty($config['munchkin_id'], 'The `marketo_munchkin_id` environment variable is empty.');
-
-        self::assertTrue($client instanceof \CSD\Marketo\Client);
+        $data = [
+            'client_id' => 'test_id',
+            'client_secret' => 'test secret',
+            'marketo_client_id' => 'test munchkin client id',
+            'munchkin_id' => 'test munchkin id',
+        ];
+        $client = Client::factory($data);
+        $config = $client->getHttpClient()->getConfig();
+        $this->assertContains('client_id', $config, 'The `marketo_client_id` environment variable is empty.');
+        $this->assertContains('client_secret', $config, 'The `marketo_client_secret` environment variable is empty.');
+        $this->assertContains('munchkin_id', $config, 'The `marketo_munchkin_id` environment variable is empty.');
     }
 
-    public function testExecutesCommands()
-    {
-        $this->getServer()->flush();
-        $this->getServer()->enqueue("HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n");
-
-        $client = new Client($this->getServer()->getUrl());
-        $cmd = new MockCommand();
-        $client->execute($cmd);
-
-        $this->assertInstanceOf('Guzzle\\Http\\Message\\Response', $cmd->getResponse());
-        $this->assertInstanceOf('Guzzle\\Http\\Message\\Response', $cmd->getResult());
-        $this->assertEquals(1, count($this->getServer()->getReceivedRequests(false)));
-    }
-
-    public function testGetCampaigns() {
-        // Campaign response json.
+    public function testExecutesCommands() {
         $response_json = '{"requestId": "f81c#157b104ca98","result": [{ "id": 1004, "name": "Foo", "description": " ", "type": "trigger", "workspaceName": "Default","createdAt": "2012-09-12T19:04:12Z","updatedAt": "2014-10-22T15:51:18Z","active": false}],"success": true}';
-        // Queue up a response for getCampaigns as well as getCampaign (by ID).
-        $this->getServer()->enqueue($this->generateResponses(200, [$response_json, $response_json]));
 
-        $client = $this->_getClient();
-        $campaigns = $client->getCampaigns()->getResult();
-
-        self::assertNotEmpty($campaigns[0]['id']);
-        $campaign = $client->getCampaign($campaigns[0]['id'])->getResult();
-        self::assertNotEmpty($campaign[0]['name']);
-        self::assertEquals($campaigns[0]['name'], $campaign[0]['name']);
-    }
-
-    public function testGetLists() {
-        // Campaign response json.
-        $response_json = '{"requestId":"5e2c#157b132e104","result":[{"id":1,"name":"Foo","description":"Foo description","programName":"Foo program name","workspaceName":"Default","createdAt":"2016-05-05T16:37:00Z","updatedAt":"2016-05-19T17:27:41Z"}],"success":true}';
-        // Queue up a response for getLists as well as getList (by ID).
-        $this->getServer()->enqueue($this->generateResponses(200, [$response_json, $response_json]));
-
-        $client = $this->_getClient();
-        $lists = $client->getLists()->getResult();
-
-        self::assertNotEmpty($lists[0]['id']);
-        $list = $client->getList($lists[0]['id'])->getResult();
-        self::assertNotEmpty($list[0]['name']);
-        self::assertEquals($lists[0]['name'], $list[0]['name']);
-    }
-
-    public function testLeadPartitions() {
-        // Queue up a response for getLeadPartitions request.
-        $this->getServer()->enqueue($this->generateResponses(200,'{"requestId":"984e#157b140b012","result":[{"id":1,"name":"Default","description":"Initial system lead partition"}],"success":true}'));
-
-        $client = $this->_getClient();
-        $partitions = $client->getLeadPartitions()->getResult();
-
-        self::assertNotEmpty($partitions[0]['name']);
-        self::assertEquals($partitions[0]['name'], 'Default');
+        // Queue up a response for getCampaigns request.
+        $client = $this->getServiceClient($this->generateResponses(200, $response_json));
+        $cmd = new Command('getCampaigns', [], $client->getHandlerStack());
+        $response = $client->execute($cmd);
+        $this->assertTrue($response->isSuccess());
+        $this->assertNull($response->getError());
     }
 
     public function testResponse() {
-        // Queue up a response for getCampaigns request.
-        $this->getServer()->enqueue($this->generateResponses(200,'{"requestId": "f81c#157b104ca98","result": [{ "id": 1004, "name": "Foo", "description": " ", "type": "trigger", "workspaceName": "Default","createdAt": "2012-09-12T19:04:12Z","updatedAt": "2014-10-22T15:51:18Z","active": false}],"success": true}'));
+        $response_json = '{"requestId": "f81c#157b104ca98","result": [{ "id": 1004, "name": "Foo", "description": " ", "type": "trigger", "workspaceName": "Default","createdAt": "2012-09-12T19:04:12Z","updatedAt": "2014-10-22T15:51:18Z","active": false}],"success": true}';
 
-        $client = $this->_getClient();
+        // Queue up a response for getCampaigns request.
+        $client = $this->getServiceClient($this->generateResponses(200, $response_json));
+
         $response = $client->getCampaigns();
 
-        self::assertTrue($response->isSuccess());
-        self::assertNull($response->getError());
-        self::assertNotEmpty($response->getRequestId());
-
-        // No assertion but make sure getNextPageToken doesn't error out.
-        $response->getNextPageToken();
+        $this->assertTrue($response->isSuccess());
+        $this->assertNull($response->getError());
+        $this->assertNotEmpty($response->getRequestId());
+        $this->assertNull($response->getNextPageToken());
 
         // @todo: figure out how to rest \CSD\Marketo\Response::fromCommand().
     }
 
-    protected function generateResponses($status_code, $response_data, $add_token_response = FALSE) {
-        $responses = !$add_token_response  ? [] : [
-            new Response(200, NULL, '{"access_token": "0f9cc479-30ae-4d7a-b850-53bd9d44de45:sj","token_type": "bearer","expires_in": 3599,"scope": "smuvva+apiuser@tibco.com"}'),
-        ];
+    /**
+     * @covers ::getCampaign
+     * @covers ::getCampaigns
+     */
+    public function testGetCampaigns() {
+        // Campaign response json.
+        $response_json = '{"requestId": "f81c#157b104ca98","result": [{ "id": 1004, "name": "Foo", "description": " ", "type": "trigger", "workspaceName": "Default","createdAt": "2012-09-12T19:04:12Z","updatedAt": "2014-10-22T15:51:18Z","active": false}],"success": true}';
 
-        foreach ((array) $response_data as $item) {
-            $json_string = is_array($item) ? json_encode($item) : $item;
-            $responses[] = new Response($status_code, NULL, $json_string);
-        }
+        // Queue up a response for getCampaigns as well as getCampaign (by ID).
+        $client = $this->getServiceClient($this->generateResponses(200, [
+            $response_json,
+            $response_json,
+        ]));
 
-        return $responses;
+        $campaigns_response = $client->getCampaigns();
+        $this->assertInstanceOf(GetCampaignsResponse::class, $campaigns_response);
+        $campaigns = $campaigns_response->getResult();
+        $this->assertNotEmpty($campaigns[0]['id']);
+
+        $campaign_response = $client->getCampaign($campaigns[0]['id']);
+        $this->assertInstanceOf(GetCampaignResponse::class, $campaign_response);
+        $campaign = $campaign_response->getResult();
+        $this->assertNotEmpty($campaign[0]['name']);
+        $this->assertEquals($campaigns[0]['name'], $campaign[0]['name']);
     }
 
+    /**
+     * @covers ::getList
+     * @covers ::getlists
+     */
+    public function testGetLists() {
+        // Campaign response json.
+        $response_json = '{"requestId":"5e2c#157b132e104","result":[{"id":1,"name":"Foo","description":"Foo description","programName":"Foo program name","workspaceName":"Default","createdAt":"2016-05-05T16:37:00Z","updatedAt":"2016-05-19T17:27:41Z"}],"success":true}';
+        // Queue up a response for getLists as well as getList (by ID).
+        $client = $this->getServiceClient($this->generateResponses(200,  [
+            $response_json,
+            $response_json,
+        ]));
+
+        $list_response = $client->getLists();
+        $this->assertInstanceOf(GetListsResponse::class, $list_response);
+        $lists = $list_response->getResult();
+        $this->assertNotEmpty($lists[0]['id']);
+
+        $list_response = $client->getList($lists[0]['id']);
+        $this->assertInstanceOf(GetListResponse::class, $list_response);
+        $list = $list_response->getResult();
+        $this->assertNotEmpty($list[0]['name']);
+        $this->assertEquals($lists[0]['name'], $list[0]['name']);
+    }
+
+    /**
+     * @covers ::getLeadPartitions
+     */
+    public function testLeadPartitions() {
+        $response_json = '{"requestId":"984e#157b140b012","result":[{"id":1,"name":"Default","description":"Initial system lead partition"}],"success":true}';
+
+        // Queue up a response for getLeadPartitions request.
+        $client = $this->getServiceClient($this->generateResponses(200, $response_json));
+
+        $partitions_result = $client->getLeadPartitions();
+        $this->assertInstanceOf(GetLeadPartitionsResponse::class, $partitions_result);
+        $partitions = $partitions_result->getResult();
+        $this->assertNotEmpty($partitions[0]['name']);
+        $this->assertEquals($partitions[0]['name'], 'Default');
+    }
+
+    /**
+     * @covers ::describeLeads
+     * @covers ::describeObject
+     */
     public function testDescribeLeads() {
+        $response_json = '{"requestId":"fb0#157b1501f31","result":[{"id":48,"displayName":"First Name","dataType":"string","length":255,"rest":{"name":"firstName","readOnly":false},"soap":{"name":"FirstName","readOnly":false}},{"id":50,"displayName":"Last Name","dataType":"string","length":255,"rest":{"name":"lastName","readOnly":false},"soap":{"name":"LastName","readOnly":false}},{"id":51,"displayName":"Email Address","dataType":"email","length":255,"rest":{"name":"email","readOnly":false},"soap":{"name":"Email","readOnly":false}},{"id":60,"displayName":"Address","dataType":"text","rest":{"name":"address","readOnly":false},"soap":{"name":"Address","readOnly":false}}],"success":true}';
+
         // Queue up a response for describeLeads request.
-        $this->getServer()->enqueue($this->generateResponses(200,'{"requestId":"fb0#157b1501f31","result":[{"id":48,"displayName":"First Name","dataType":"string","length":255,"rest":{"name":"firstName","readOnly":false},"soap":{"name":"FirstName","readOnly":false}},{"id":50,"displayName":"Last Name","dataType":"string","length":255,"rest":{"name":"lastName","readOnly":false},"soap":{"name":"LastName","readOnly":false}},{"id":51,"displayName":"Email Address","dataType":"email","length":255,"rest":{"name":"email","readOnly":false},"soap":{"name":"Email","readOnly":false}},{"id":60,"displayName":"Address","dataType":"text","rest":{"name":"address","readOnly":false},"soap":{"name":"Address","readOnly":false}}],"success":true}'));
+        $client = $this->getServiceClient($this->generateResponses(200, $response_json));
 
-        $client = $this->_getClient();
-        $leadFields = $client->describeLeads()->getResult();
-
-        self::assertEquals($leadFields[0]['displayName'], 'First Name');
+        $leadFields_result = $client->describeLeads();
+        $this->assertInstanceOf(Result::class, $leadFields_result);
+        $leadFields = $leadFields_result->getResult();
+        $this->assertEquals($leadFields[0]['displayName'], 'First Name');
     }
 
+    /**
+     * @covers ::getActivityTypes
+     */
     public function testGetActivityTypes() {
-        // Queue up a response for getActivityTypes request.
-        $this->getServer()->enqueue($this->generateResponses(200,'{"requestId":"6e78#148ad3b76f1","success":true,"result":[{"id":2,"name":"Fill Out Form","description":"User fills out and submits form on web page","primaryAttribute":{"name":"Webform ID","dataType":"integer"},"attributes":[{"name":"Client IP Address","dataType":"string"},{"name":"Form Fields","dataType":"text"},{"name":"Query Parameters","dataType":"string"},{"name":"Referrer URL","dataType":"string"},{"name":"User Agent","dataType":"string"},{"name":"Webpage ID","dataType":"integer"}]}]}'));
+        $response_json = '{"requestId":"6e78#148ad3b76f1","success":true,"result":[{"id":2,"name":"Fill Out Form","description":"User fills out and submits form on web page","primaryAttribute":{"name":"Webform ID","dataType":"integer"},"attributes":[{"name":"Client IP Address","dataType":"string"},{"name":"Form Fields","dataType":"text"},{"name":"Query Parameters","dataType":"string"},{"name":"Referrer URL","dataType":"string"},{"name":"User Agent","dataType":"string"},{"name":"Webpage ID","dataType":"integer"}]}]}';
 
-        $client = $this->_getClient();
+        // Queue up a response for getActivityTypes request.
+        $client = $this->getServiceClient($this->generateResponses(200, $response_json));
+
         /** @var \CSD\Marketo\Response $response */
         $response = $client->getActivityTypes();
-
-        self::assertTrue($response->isSuccess());
-        self::assertNull($response->getError());
-        self::assertEquals('Fill Out Form', $response->getResult()[0]['name']);
+        $this->assertInstanceOf(Result::class, $response);
+        $this->assertTrue($response->isSuccess());
+        $this->assertNull($response->getError());
+        $this->assertEquals('Fill Out Form', $response->getResult()[0]['name']);
     }
 
+    /**
+     * @covers ::getActivityTypes
+     * @covers ::getPagingToken
+     * @covers ::getLeadActivity
+     */
     public function testGetLeadActivity() {
         // Queue up a response for getActivityTypes, getPagingToken and getLeadActivity requests.
-        $this->getServer()->enqueue($this->generateResponses(200,[
+        $client = $this->getServiceClient($this->generateResponses(200, [
             '{"requestId":"6e78#148ad3b76f1","success":true,"result":[{"id":2,"name":"Fill Out Form","description":"User fills out and submits form on web page","primaryAttribute":{"name":"Webform ID","dataType":"integer"},"attributes":[{"name":"Client IP Address","dataType":"string"},{"name":"Form Fields","dataType":"text"},{"name":"Query Parameters","dataType":"string"},{"name":"Referrer URL","dataType":"string"},{"name":"User Agent","dataType":"string"},{"name":"Webpage ID","dataType":"integer"}]}]}',
             '{"requestId":"f84c#157b16681eb","success":true,"nextPageToken":"JXBIK3O6SUWULQ12345678Y57ZJCBBZRGHQV57IZSKSLYLLU6PPQ===="}',
             '{"requestId":"24fd#15188a88d7f","result":[{"id":102988,"leadId":1,"activityDate":"2015-01-16T23:32:19Z","activityTypeId":1,"primaryAttributeValueId":71,"primaryAttributeValue":"localhost/munchkintest2.html","attributes":[{"name":"Client IP Address","value":"10.0.19.252"},{"name":"Query Parameters","value":""},{"name":"Referrer URL","value":""},{"name":"User Agent","value":"Mozilla/5.0(Windows NT6.1;WOW64)AppleWebKit/537.36(KHTML,like Gecko)Chrome/39.0.2171.95Safari/537.36"},{"name":"Webpage URL","value":"/munchkintest2.html"}]}],"success":true,"nextPageToken":"WQV2VQVPPCKHC6AQYVK7JDSA3J62DUSJ3EXJGDPTKPEBFW3SAVUA====","moreResult":false}',
         ]));
 
-        $client = $this->_getClient();
+
         // Get activity types, needed for $activityTypesIds.
         $activity_types = $client->getActivityTypes()->getResult();
         // Get only the ids of the activity types.
-        $activity_types_ids = array_map(function ($type) {return $type['id'];}, $activity_types);
-        /** @var \CSD\Marketo\Response $response */
-        $response = $client->getLeadActivity($client->getPagingToken(date('c'))->getNextPageToken(), [1], array_slice($activity_types_ids, 0, 10));
+        $activity_types_ids = array_map(function ($type) {
+            return $type['id'];
+        }, $activity_types);
 
-        self::assertTrue($response->isSuccess());
-        self::assertNull($response->getError());
-        self::assertEquals('1', $response->getResult()[0]['activityTypeId']);
-        self::assertEquals('localhost/munchkintest2.html', $response->getResult()[0]['primaryAttributeValue']);
+        $paging_response = $client->getPagingToken(date('c'));
+        $this->assertInstanceOf(GetPagingToken::class, $paging_response);
+
+        /** @var \CSD\Marketo\Response $response */
+        $response = $client->getLeadActivity(
+            $paging_response->getNextPageToken(),
+            [1],
+            array_slice($activity_types_ids, 0, 10));
+        $this->assertInstanceOf(Result::class, $response);
+        $this->assertTrue($response->isSuccess());
+        $this->assertNull($response->getError());
+        $this->assertEquals('1', $response->getResult()[0]['activityTypeId']);
+        $this->assertEquals('localhost/munchkintest2.html', $response->getResult()[0]['primaryAttributeValue']);
     }
 
-    public function testGetAddCustomActivities()
-    {
+    public function provideBadCustomActivities() {
+        return[
+            [[[]], '/Required parameter ".*" is missing\./'],
+            [[['leadId' => 'a']], '/Required parameter ".*" is missing\./'],
+            [[['leadId' => 'a', 'activityTypeId' => 'a']], '/Required parameter ".*" is missing\./'],
+            [[['leadId' => 'a', 'primaryAttributeValue' => 'a']], '/Required parameter ".*" is missing\./'],
+            [[['leadId' => 'a', 'activityTypeId' => 'a', 'primaryAttributeValue' => 'a', 'activityDate' => '']], '/Required parameter "activityDate" must be a DateTime object\./'],
+        ];
+    }
+
+    /**
+     * @dataProvider provideBadCustomActivities
+     */
+    public function testGetAddCustomActivities2($activities, $message) {
+
         // Queue up some valid responses
-        $this->getServer()->enqueue($this->generateResponses(200,[
+        $client = $this->getServiceClient($this->generateResponses(200, [
             '{"requestId":"16b08#1583f618888","result":[{"id":13847522,"status":"added"}],"success":true}',
             '{"requestId":"16b08#1583f618889","result":[{"id":13847165,"status":"added"},{"id":13847290,"status":"updated"}],"success":true}',
         ]));
+        $this->setExpectedExceptionRegExp(\InvalidArgumentException::class, $message);
+        $client->addCustomActivities($activities);
+    }
 
-        $client = $this->_getClient();
-
-        // Negative use case
-        $test = function() use ($client) {
-            $activities = [[]]; // Missing all required array keys
-            $response = $client->addCustomActivities($activities);
-        };
-        $this->assertExceptionThrown($test);
-
-        // Negative use case
-        $test = function() use ($client) {
-            $activities = [
-                [
-                    'leadId' => 4,
-                    'activityTypeId' => 100002,
-                    // Missing 'primaryAttributeValue' parameter
-                ]
-            ];
-            $response = $client->addCustomActivities($activities);
-        };
-        $this->assertExceptionThrown($test);
+    public function testGetAddCustomActivities() {
+        // Queue up some valid responses
+        $client = $this->getServiceClient($this->generateResponses(200, [
+            '{"requestId":"16b08#1583f618888","result":[{"id":13847522,"status":"added"}],"success":true}',
+            '{"requestId":"16b08#1583f618889","result":[{"id":13847165,"status":"added"},{"id":13847290,"status":"updated"}],"success":true}',
+        ]));
 
         // Positive use case
         $activities = [
@@ -233,8 +303,7 @@ class MarketoSoapClientTest extends GuzzleTestCase {
             ]
         ];
         $response = $client->addCustomActivities($activities);
-        $this->assertTrue(is_object($response));
-        $this->assertEquals(\CSD\Marketo\Response\AddCustomActivitiesResponse::class, get_class($response));
+        $this->assertInstanceOf(AddCustomActivitiesResponse::class, $response);
         $this->assertTrue($response->isSuccess());
         $this->assertEquals('added', $response->getStatus());
 
@@ -266,26 +335,10 @@ class MarketoSoapClientTest extends GuzzleTestCase {
             ],
         ];
         $response = $client->addCustomActivities($activities);
-        $this->assertTrue(is_object($response));
-        $this->assertEquals(\CSD\Marketo\Response\AddCustomActivitiesResponse::class, get_class($response));
+        $this->assertInstanceOf(AddCustomActivitiesResponse::class, $response);
         $this->assertTrue($response->isSuccess());
         $this->assertEquals('added', $response->getStatus());
         $this->assertEquals('updated', $response->getStatus(13847290));
     }
 
-    /**
-     * @param \Closure $closure
-     * @param string $exceptionClass
-     */
-    private function assertExceptionThrown(\Closure $closure, $exceptionClass = 'InvalidArgumentException')
-    {
-        try {
-            $closure();
-        } catch (\Exception $e) {
-            $this->assertEquals($exceptionClass, get_class($e));
-            return;
-        }
-
-        $this->fail($exceptionClass . ' failed to be thrown.');
-    }
 }
