@@ -211,7 +211,9 @@ class MarketoRestClientTest extends TestCase
     }
 
     /**
-     * @covers ::getActivityTypes
+     * Test dynamic calls
+     *
+     * @coversNothing
      */
     public function testGetActivityTypes() {
         $response_json = '{"requestId":"6e78#148ad3b76f1","success":true,"result":[{"id":2,"name":"Fill Out Form","description":"User fills out and submits form on web page","primaryAttribute":{"name":"Webform ID","dataType":"integer"},"attributes":[{"name":"Client IP Address","dataType":"string"},{"name":"Form Fields","dataType":"text"},{"name":"Query Parameters","dataType":"string"},{"name":"Referrer URL","dataType":"string"},{"name":"User Agent","dataType":"string"},{"name":"Webpage ID","dataType":"integer"}]}]}';
@@ -228,7 +230,8 @@ class MarketoRestClientTest extends TestCase
     }
 
     /**
-     * @covers ::getActivityTypes
+     * Test making calls to lead activity and making paging token calls.
+     *
      * @covers ::getPagingToken
      * @covers ::getLeadActivity
      */
