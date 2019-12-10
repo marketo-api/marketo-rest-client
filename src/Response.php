@@ -10,28 +10,15 @@
 
 namespace CSD\Marketo;
 
-use Guzzle\Service\Command\OperationCommand;
-use Guzzle\Service\Command\ResponseClassInterface;
+use GuzzleHttp\Command\Result;
 
 /**
  * Base response class for Marketo API responses.
  *
  * @author Daniel Chesterton <daniel@chestertondevelopment.com>
  */
-class Response implements ResponseClassInterface
+class Response extends Result
 {
-    /**
-     * @var array
-     */
-    protected $data;
-
-    /**
-     * @param $data
-     */
-    public function __construct($data)
-    {
-        $this->data = $data;
-    }
 
     /**
      * @return array|null

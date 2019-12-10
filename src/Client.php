@@ -10,27 +10,33 @@
 
 namespace CSD\Marketo;
 
-// Guzzle
-use CommerceGuys\Guzzle\Plugin\Oauth2\Oauth2Plugin;
+use CSD\Marketo\Cache\StaticCachePool;
 use CSD\Marketo\Response\AddCustomActivitiesResponse;
-use CSD\Marketo\Response\GetLeadChanges;
-use CSD\Marketo\Response\GetPagingToken;
-use Guzzle\Common\Collection;
-use Guzzle\Service\Client as GuzzleClient;
-use Guzzle\Service\Description\ServiceDescription;
-
-// Response classes
 use CSD\Marketo\Response\AddOrRemoveLeadsToListResponse;
-use CSD\Marketo\Response\AssociateLeadResponse;
 use CSD\Marketo\Response\CreateOrUpdateLeadsResponse;
 use CSD\Marketo\Response\GetCampaignResponse;
 use CSD\Marketo\Response\GetCampaignsResponse;
-use CSD\Marketo\Response\GetLeadResponse;
+use CSD\Marketo\Response\GetLeadChanges;
 use CSD\Marketo\Response\GetLeadPartitionsResponse;
+use CSD\Marketo\Response\GetLeadResponse;
 use CSD\Marketo\Response\GetLeadsResponse;
 use CSD\Marketo\Response\GetListResponse;
 use CSD\Marketo\Response\GetListsResponse;
+use CSD\Marketo\Response\GetPagingToken;
 use CSD\Marketo\Response\IsMemberOfListResponse;
+use GuzzleHttp\Client as GuzzleHttpClient;
+use GuzzleHttp\Command\Guzzle\Description;
+use GuzzleHttp\Command\Guzzle\DescriptionInterface;
+use GuzzleHttp\Command\Guzzle\GuzzleClient;
+use GuzzleHttp\Handler\MockHandler;
+use GuzzleHttp\HandlerStack;
+use GuzzleHttp\Middleware;
+use InvalidArgumentException;
+use Kristenlk\OAuth2\Client\Provider\Marketo;
+use Psr\Cache\CacheItemPoolInterface;
+use Softonic\OAuth2\Guzzle\Middleware\AccessTokenCacheHandler;
+use Softonic\OAuth2\Guzzle\Middleware\AddAuthorizationHeader;
+use Softonic\OAuth2\Guzzle\Middleware\RetryOnAuthorizationError;
 
 /**
  * Guzzle client for communicating with the Marketo.com REST API.
@@ -44,56 +50,102 @@ class Client extends GuzzleClient
     /**
      * @var array
      */
-    private $marketoObjects = array(
+    private $marketoObjects = [
       'Leads' => 'leads',
       'Companies' => 'companies',
       'Opportunities' => 'opportunities',
       'Opportunities Roles' => 'opportunities/roles',
       'Sales Persons' => 'salespersons'
-    );
+    ];
 
-    /**
-     * {@inheritdoc}
-     */
-    public static function factory($config = array())
+  /**
+   * Create a client.
+   *
+   * @param array $config
+   * @param \Psr\Cache\CacheItemPoolInterface|null $cache
+   * @return static
+   */
+    public static function factory($config = [], CacheItemPoolInterface $cache = null)
     {
-        $default = array(
+        // Add default values.
+        $config += [
             'url' => false,
             'munchkin_id' => false,
             'version' => 1,
             'bulk' => false
-        );
+        ];
+        $required = ['client_id', 'client_secret', 'version'];
+        $guzzleOptions = [];
+        $tokenOptions = [
+            'grant_type' => 'client_credentials',
+        ];
 
-        $required = array('client_id', 'client_secret', 'version');
-        $config = Collection::fromConfig($config, $default, $required);
+        if ($missing = array_diff($required, array_keys($config))) {
+            throw new InvalidArgumentException('Config is missing the following keys: ' . implode(', ', $missing));
+        }
 
-        $url = $config->get('url');
-
-        if (!$url) {
-            $munchkin = $config->get('munchkin_id');
-
-            if (!$munchkin) {
-                throw new \Exception('Must provide either a URL or Munchkin code.');
+        if ($config['url']) {
+            $url = $config['url'];
+        }
+        else {
+            if (empty($config['munchkin_id'])) {
+                throw new InvalidArgumentException('Must provide either a URL or Munchkin code.');
             }
-
-            $url = sprintf('https://%s.mktorest.com', $munchkin);
+            $url = sprintf('https://%s.mktorest.com', $config['munchkin_id']);
         }
 
-        $grantType = new Credentials($url, $config->get('client_id'), $config->get('client_secret'));
-        $auth = new Oauth2Plugin($grantType);
-
-        if ($config->get('bulk') === true) {
-            $restUrl = sprintf('%s/bulk/v%d', rtrim($url, '/'), $config->get('version'));
-        } else {
-            $restUrl = sprintf('%s/rest/v%d', rtrim($url, '/'), $config->get('version'));
+        if ($config['bulk'] === true) {
+            $guzzleOptions['base_uri'] = sprintf('%s/bulk/v%d', rtrim($url, '/'), $config['version']);
         }
+        else {
+            $guzzleOptions['base_uri'] = sprintf('%s/rest/v%d', rtrim($url, '/'), $config['version']);
+        }
+        $guzzleOptions['headers'] = ['Content-Type' => 'application/json'];
 
-        $client = new self($restUrl, $config);
-        $client->addSubscriber($auth);
-        $client->setDescription(ServiceDescription::factory(__DIR__ . '/service.json'));
-        $client->setDefaultOption('headers/Content-Type', 'application/json');
+        $oauthProvider = new Marketo([
+            'clientId'          => $config['client_id'],
+            'clientSecret'      => $config['client_secret'],
+            'baseUrl'           => $url,
+        ], []);
+        if (!isset($cache)) {
+            $cache = new StaticCachePool();
+        }
+        $cacheHandler = new AccessTokenCacheHandler($cache);
 
-        return $client;
+        $stack = HandlerStack::create();
+        $stack->setHandler(new MockHandler());
+        $stack->push(Middleware::mapRequest(new AddAuthorizationHeader(
+            $oauthProvider,
+            $tokenOptions,
+            $cacheHandler
+        )));
+        $stack->push(Middleware::retry(new RetryOnAuthorizationError(
+            $oauthProvider,
+            $tokenOptions,
+            $cacheHandler
+        )));
+
+        $guzzleOptions['handler'] = $stack;
+        $client = new GuzzleHttpClient($guzzleOptions);
+        $description = static::createDescription();
+        return new static(
+            $client,
+            $description,
+            NULL,
+            static::createDeserializer($description)
+        );
+    }
+
+    /**
+     * @return \GuzzleHttp\Command\Guzzle\Description
+     */
+    public static function createDescription() {
+        return new Description(json_decode(file_get_contents(__DIR__ . '/service.json'), TRUE));
+    }
+
+    public static function createDeserializer(DescriptionInterface $description, $process = TRUE) {
+//        return null;
+        return new Deserializer($description, TRUE);
     }
 
     /**
@@ -150,7 +202,7 @@ class Client extends GuzzleClient
      *
      * @link http://developers.marketo.com/documentation/rest/get-import-failure-file/
      *
-     * @return \Guzzle\Http\Message\Response
+     * @return \Guzzlehttp\Http\Message\Response
      */
     public function getBulkUploadFailures($batchId)
     {
@@ -859,6 +911,7 @@ class Client extends GuzzleClient
      * @param array $args
      * @param bool $returnRaw
      * @return AddCustomActivitiesResponse
+     * @throws \Exception
      */
     public function addCustomActivities($activities, $args = array(), $returnRaw = false)
     {
@@ -867,7 +920,7 @@ class Client extends GuzzleClient
             // Validation: Required parameters.
             foreach (['leadId', 'activityTypeId', 'primaryAttributeValue'] as $required) {
                 if (!isset($activity[$required])) {
-                    throw new \InvalidArgumentException("Required parameter \"{$required}\" is missing.");
+                    throw new InvalidArgumentException("Required parameter \"{$required}\" is missing.");
                 }
             }
 
@@ -875,7 +928,7 @@ class Client extends GuzzleClient
             if (!isset($activity['activityDate'])) {
                 $activity['activityDate'] = new \DateTime();
             } elseif (!($activity['activityDate'] instanceof \DateTime)) {
-                throw new \InvalidArgumentException('Required parameter "activityDate" must be a DateTime object.');
+                throw new InvalidArgumentException('Required parameter "activityDate" must be a DateTime object.');
             }
 
             // Format required parameters
@@ -897,18 +950,18 @@ class Client extends GuzzleClient
             // The optional 'attributes' parameter has some validation.
             if (isset($activity['attributes'])) {
                 if (!is_array($activity['attributes'])) {
-                    throw new \InvalidArgumentException('Optional parameter "attributes" must be an array.');
+                    throw new InvalidArgumentException('Optional parameter "attributes" must be an array.');
                 }
 
                 $input['attributes'] = []; // Initialize
                 foreach ($activity['attributes'] as $attribute) {
                     if (!is_array($attribute)) {
-                        throw new \InvalidArgumentException('The "attributes" parameter must contain child array(s).');
+                        throw new InvalidArgumentException('The "attributes" parameter must contain child array(s).');
                     }
                     // Required child parameters
                     foreach (['name', 'value'] as $required) {
                         if (!isset($attribute[$required])) {
-                            throw new \InvalidArgumentException("Required array key \"{$required}\" is missing in the \"attributes\" parameter.");
+                            throw new InvalidArgumentException("Required array key \"{$required}\" is missing in the \"attributes\" parameter.");
                         }
                     }
                     $inputAttribute = [
@@ -1002,7 +1055,7 @@ class Client extends GuzzleClient
      *
      * @link http://developers.marketo.com/documentation/asset-api/approve-email-by-id/
      *
-     * @return \CSD\Marketo\Response\ApproveEmailResponse
+     * @return \CSD\Marketo\Response\Response
      */
     public function approveEmail($emailId, $args = array(), $returnRaw = false)
     {
@@ -1130,10 +1183,14 @@ class Client extends GuzzleClient
      * @param bool   $fixArgs
      * @param bool   $returnRaw
      *
-     * @return \CSD\Marketo\Response|string
+     * @return \CSD\Marketo\Response|string|mixed
      */
     private function getResult($command, $args, $fixArgs = false, $returnRaw = false)
     {
+        return $this->execute($this->getCommand($command, $args));
+
+
+        return new Response($result->toArray());
         $cmd = $this->getCommand($command, $args);
 
         // Marketo expects parameter arrays in the format id=1&id=2, Guzzle formats them as id[0]=1&id[1]=2.

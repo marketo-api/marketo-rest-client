@@ -7,41 +7,63 @@
             "httpMethod": "POST",
             "uri": "leads.json",
             "parameters": {
-                "format": { "location": "postField"},
-                "file": { "location": "postFile"}
+                "format": {
+                    "location": "postField"
+                },
+                "file": {
+                    "location": "postFile"
+                }
             }
         },
         "getBulkUploadStatus": {
             "httpMethod": "GET",
             "uri": "leads/batch/{batchId}.json",
             "parameters": {
-                "batchId": {"location": "uri"}
+                "batchId": {
+                    "location": "uri"
+                }
             }
         },
         "getBulkUploadFailures": {
             "httpMethod": "GET",
             "uri": "leads/batch/{batchId}/failures.json",
             "parameters": {
-                "batchId": {"location": "uri"}
+                "batchId": {
+                    "location": "uri"
+                }
             }
         },
         "getBulkUploadWarnings": {
             "httpMethod": "GET",
             "uri": "leads/batch/{batchId}/warnings.json",
             "parameters": {
-                "batchId": {"location": "uri"}
+                "batchId": {
+                    "location": "uri"
+                }
             }
         },
         "getLists": {
             "httpMethod": "GET",
             "uri": "lists.json",
             "parameters": {
-                "id": {"location": "query"},
-                "name": {"location": "query"},
-                "programName": {"location": "query"},
-                "workspaceName": {"location": "query"},
-                "batchSize": {"location": "query"},
-                "nextPageToken": {"location": "query"}
+                "id": {
+                    "location": "query"
+                },
+                "name": {
+                    "location": "query"
+                },
+                "programName": {
+                    "location": "query"
+                },
+                "workspaceName": {
+                    "location": "query"
+                },
+                "batchSize": {
+                    "location": "query"
+                },
+                "nextPageToken": {
+                    "location": "query"
+                }
             },
             "responseClass": "CSD\\Marketo\\Response\\GetListsResponse"
         },
@@ -49,7 +71,9 @@
             "httpMethod": "GET",
             "uri": "lists/{id}.json",
             "parameters": {
-                "id": {"location": "uri"}
+                "id": {
+                    "location": "uri"
+                }
             },
             "responseClass": "CSD\\Marketo\\Response\\GetListResponse"
         },
@@ -57,9 +81,15 @@
             "httpMethod": "GET",
             "uri": "leads.json",
             "parameters": {
-                "filterType": {"location": "query"},
-                "filterValues": {"location": "query"},
-                "fields": {"location": "query"}
+                "filterType": {
+                    "location": "query"
+                },
+                "filterValues": {
+                    "location": "query"
+                },
+                "fields": {
+                    "location": "query"
+                }
             },
             "responseClass": "CSD\\Marketo\\Response\\GetLeadResponse"
         },
@@ -67,10 +97,19 @@
             "httpMethod": "GET",
             "uri": "leads.json",
             "parameters": {
-                "filterType": {"location": "query"},
-                "filterValues": {"location": "query"},
-                "fields": {"location": "query"},
-                "nextPageToken": {"location": "query", "required": false}
+                "filterType": {
+                    "location": "query"
+                },
+                "filterValues": {
+                    "location": "query"
+                },
+                "fields": {
+                    "location": "query"
+                },
+                "nextPageToken": {
+                    "location": "query",
+                    "required": false
+                }
             },
             "responseClass": "CSD\\Marketo\\Response\\GetLeadsResponse"
         },
@@ -78,10 +117,18 @@
             "httpMethod": "GET",
             "uri": "list/{listId}/leads.json",
             "parameters": {
-                "listId": {"location": "uri"},
-                "batchSize": {"location": "query"},
-                "nextPageToken": {"location": "query"},
-                "fields": {"location": "query"}
+                "listId": {
+                    "location": "uri"
+                },
+                "batchSize": {
+                    "location": "query"
+                },
+                "nextPageToken": {
+                    "location": "query"
+                },
+                "fields": {
+                    "location": "query"
+                }
             },
             "responseClass": "CSD\\Marketo\\Response\\GetLeadsResponse"
         },
@@ -89,8 +136,12 @@
             "httpMethod": "GET",
             "uri": "lists/{listId}/leads/ismember.json",
             "parameters": {
-                "listId": {"location": "uri"},
-                "id": {"location": "query"}
+                "listId": {
+                    "location": "uri"
+                },
+                "id": {
+                    "location": "query"
+                }
             },
             "responseClass": "CSD\\Marketo\\Response\\IsMemberOfListResponse"
         },
@@ -98,8 +149,12 @@
             "httpMethod": "GET",
             "uri": "lead/{id}.json",
             "parameters": {
-                "id": {"location": "uri"},
-                "fields": {"location": "query"}
+                "id": {
+                    "location": "uri"
+                },
+                "fields": {
+                    "location": "query"
+                }
             },
             "responseClass": "CSD\\Marketo\\Response\\GetLeadResponse"
         },
@@ -107,12 +162,24 @@
             "httpMethod": "GET",
             "uri": "campaigns.json",
             "parameters": {
-                "id": {"location": "query"},
-                "name": {"location": "query"},
-                "programName": {"location": "query"},
-                "workspaceName": {"location": "query"},
-                "batchSize": {"location": "query"},
-                "nextPageToken": {"location": "query"}
+                "id": {
+                    "location": "query"
+                },
+                "name": {
+                    "location": "query"
+                },
+                "programName": {
+                    "location": "query"
+                },
+                "workspaceName": {
+                    "location": "query"
+                },
+                "batchSize": {
+                    "location": "query"
+                },
+                "nextPageToken": {
+                    "location": "query"
+                }
             },
             "responseClass": "CSD\\Marketo\\Response\\GetCampaignsResponse"
         },
@@ -130,30 +197,44 @@
             "httpMethod": "POST",
             "uri": "campaigns/{id}/trigger.json",
             "parameters": {
-                "id": {"location": "uri"},
-                "input": {"location": "json"}
+                "id": {
+                    "location": "uri"
+                },
+                "input": {
+                    "location": "json"
+                }
             },
-            "responseModel": "baseResponse",
             "responseClass": "CSD\\Marketo\\Response"
         },
         "scheduleCampaign": {
             "httpMethod": "POST",
             "uri": "campaigns/{id}/schedule.json",
             "parameters": {
-                "id": {"location": "uri"},
-                "input": {"location": "json"}
+                "id": {
+                    "location": "uri"
+                },
+                "input": {
+                    "location": "json"
+                }
             },
-            "responseModel": "baseResponse",
             "responseClass": "CSD\\Marketo\\Response"
         },
         "createOrUpdateLeads": {
             "httpMethod": "POST",
             "uri": "leads.json",
             "parameters": {
-                "action": {"location": "json"},
-                "input": {"location": "json"},
-                "lookupField": {"location": "json"},
-                "partitionName": {"location": "json"}
+                "action": {
+                    "location": "json"
+                },
+                "input": {
+                    "location": "json"
+                },
+                "lookupField": {
+                    "location": "json"
+                },
+                "partitionName": {
+                    "location": "json"
+                }
             },
             "responseClass": "CSD\\Marketo\\Response\\CreateOrUpdateLeadsResponse"
         },
@@ -161,8 +242,12 @@
             "httpMethod": "POST",
             "uri": "lists/{listId}/leads.json",
             "parameters": {
-                "listId": {"location": "uri"},
-                "id": {"location": "query"}
+                "listId": {
+                    "location": "uri"
+                },
+                "id": {
+                    "location": "query"
+                }
             },
             "responseClass": "CSD\\Marketo\\Response\\AddOrRemoveLeadsToListResponse"
         },
@@ -170,18 +255,25 @@
             "httpMethod": "POST",
             "uri": "leads/{id}/associate.json",
             "parameters": {
-                "id": {"location": "uri"},
-                "cookie": {"location": "query"}
+                "id": {
+                    "location": "uri"
+                },
+                "cookie": {
+                    "location": "query"
+                }
             },
-            "responseModel": "baseResponse",
             "responseClass": "CSD\\Marketo\\Response"
         },
         "removeLeadsFromList": {
             "httpMethod": "DELETE",
             "uri": "lists/{listId}/leads.json",
             "parameters": {
-                "listId": {"location": "uri"},
-                "id": {"location": "query"}
+                "listId": {
+                    "location": "uri"
+                },
+                "id": {
+                    "location": "query"
+                }
             },
             "responseClass": "CSD\\Marketo\\Response\\AddOrRemoveLeadsToListResponse"
         },
@@ -189,8 +281,12 @@
             "httpMethod": "DELETE",
             "uri": "leads.json",
             "parameters": {
-                "listId": {"location": "uri"},
-                "id": {"location": "query"}
+                "listId": {
+                    "location": "uri"
+                },
+                "id": {
+                    "location": "query"
+                }
             },
             "responseClass": "CSD\\Marketo\\Response\\DeleteLeadResponse"
         },
@@ -198,7 +294,9 @@
             "httpMethod": "POST",
             "uri": "activities/external.json",
             "parameters": {
-                "input": {"location": "json"}
+                "input": {
+                    "location": "json"
+                }
             },
             "responseClass": "CSD\\Marketo\\Response\\AddCustomActivitiesResponse"
         },
@@ -206,7 +304,9 @@
             "httpMethod": "GET",
             "uri": "activities/pagingtoken.json",
             "parameters": {
-                "sinceDatetime": {"location": "query"}
+                "sinceDatetime": {
+                    "location": "query"
+                }
             },
             "responseClass": "CSD\\Marketo\\Response\\GetPagingToken"
         },
@@ -214,11 +314,18 @@
             "httpMethod": "GET",
             "uri": "activities/leadchanges.json",
             "parameters": {
-                "nextPageToken": {"location": "query"},
-                "batchSize": {"location": "query"},
-                "nextPageToken": {"location": "query"},
-                "listId": {"location": "query"},
-                "fields": {"location": "query"}
+                "batchSize": {
+                    "location": "query"
+                },
+                "nextPageToken": {
+                    "location": "query"
+                },
+                "listId": {
+                    "location": "query"
+                },
+                "fields": {
+                    "location": "query"
+                }
             },
             "responseClass": "CSD\\Marketo\\Response\\GetLeadChanges"
         },
@@ -232,39 +339,60 @@
             "httpMethod": "POST",
             "uri": "/rest/asset/v1/email/{id}/content.json",
             "parameters": {
-                "id": {"location": "uri"},
-                "subject": {"location": "query"},
-                "fromEmail": {"location": "query"},
-                "fromName": {"location": "query"},
-                "replyTo": {"location": "query"}
+                "id": {
+                    "location": "uri"
+                },
+                "subject": {
+                    "location": "query"
+                },
+                "fromEmail": {
+                    "location": "query"
+                },
+                "fromName": {
+                    "location": "query"
+                },
+                "replyTo": {
+                    "location": "query"
+                }
             },
-            "responseModel": "baseResponse",
             "responseClass": "CSD\\Marketo\\Response"
         },
         "updateEmailContentInEditableSection": {
             "httpMethod": "POST",
             "uri": "/rest/asset/v1/email/{id}/content/{htmlId}.json",
             "parameters": {
-                "id": {"location": "uri"},
-                "htmlId": {"location": "uri"},
-                "type": {"location": "query"},
-                "value": {"location": "query"}
+                "id": {
+                    "location": "uri"
                 },
-            "responseClass": "CSD\\Marketo\\Response\\UpdateEmailContentInEditableSectionResponse"
+                "htmlId": {
+                    "location": "uri"
+                },
+                "type": {
+                    "location": "query"
+                },
+                "value": {
+                    "location": "query"
+                }
+            },
+            "responseClass": "CSD\\Marketo\\Response"
         },
         "approveEmailbyId": {
             "httpMethod": "POST",
             "uri": "/rest/asset/v1/email/{id}/approveDraft.json",
             "parameters": {
-                "id": {"location": "uri"}
-                },
-            "responseClass": "CSD\\Marketo\\Response\\ApproveEmailResponse"
+                "id": {
+                    "location": "uri"
+                }
+            },
+            "responseClass": "CSD\\Marketo\\Response"
         },
         "describeObject": {
             "httpMethod": "GET",
             "uri": "/rest/v1/{objectName}/describe.json",
             "parameters": {
-                "objectName": {"location": "uri"}
+                "objectName": {
+                    "location": "uri"
+                }
             },
             "responseClass": "CSD\\Marketo\\Response"
         },
@@ -272,10 +400,18 @@
             "httpMethod": "POST",
             "uri": "/rest/v1/{objectName}.json",
             "parameters": {
-                "objectName": {"location": "uri"},
-                "action": {"location": "json"},
-                "input": {"location": "json"},
-                "dedupeBy": {"location": "json"}
+                "objectName": {
+                    "location": "uri"
+                },
+                "action": {
+                    "location": "json"
+                },
+                "input": {
+                    "location": "json"
+                },
+                "dedupeBy": {
+                    "location": "json"
+                }
             },
             "responseClass": "CSD\\Marketo\\Response\\GetLeadsResponse"
         },
@@ -283,25 +419,33 @@
             "httpMethod": "GET",
             "uri": "activities/types.json",
             "parameters": {},
-            "responseModel": "baseResponse",
             "responseClass": "CSD\\Marketo\\Response"
         },
         "getLeadActivity": {
             "httpMethod": "GET",
             "uri": "activities.json",
             "parameters": {
-                "activityTypeIds": {"location": "query"},
-                "nextPageToken": {"location": "query"},
-                "batchSize": {"location": "query"},
-                "listId": {"location": "query"},
-                "leadIds": {"location": "query"}
+                "activityTypeIds": {
+                    "location": "query"
+                },
+                "nextPageToken": {
+                    "location": "query"
+                },
+                "batchSize": {
+                    "location": "query"
+                },
+                "listId": {
+                    "location": "query"
+                },
+                "leadIds": {
+                    "location": "query"
+                }
             },
-            "responseModel": "baseResponse",
             "responseClass": "CSD\\Marketo\\Response"
         }
     },
     "models": {
-        "baseResponse": {
+        "CSD\\Marketo\\Response": {
             "type": "object",
             "properties": {
                 "requestId": {
@@ -331,6 +475,62 @@
             "additionalProperties": {
                 "location": "json"
             }
+        },
+        "CSD\\Marketo\\Response\\GetListResponse": {
+            "type": "object",
+            "extends": "CSD\\Marketo\\Response"
+        },
+        "CSD\\Marketo\\Response\\GetListsResponse": {
+            "type": "object",
+            "extends": "CSD\\Marketo\\Response"
+        },
+        "CSD\\Marketo\\Response\\GetCampaignResponse": {
+            "type": "object",
+            "extends": "CSD\\Marketo\\Response"
+        },
+        "CSD\\Marketo\\Response\\GetCampaignsResponse": {
+            "type": "object",
+            "extends": "CSD\\Marketo\\Response"
+        },
+        "CSD\\Marketo\\Response\\GetLeadPartitionsResponse": {
+            "type": "object",
+            "extends": "CSD\\Marketo\\Response"
+        },
+        "CSD\\Marketo\\Response\\GetPagingToken": {
+            "type": "object",
+            "extends": "CSD\\Marketo\\Response"
+        },
+        "CSD\\Marketo\\Response\\AddCustomActivitiesResponse": {
+            "type": "object",
+            "extends": "CSD\\Marketo\\Response"
+        },
+        "CSD\\Marketo\\Response\\IsMemberOfListResponse": {
+            "type": "object",
+            "extends": "CSD\\Marketo\\Response"
+        },
+        "CSD\\Marketo\\Response\\AddOrRemoveLeadsToListResponse": {
+            "type": "object",
+            "extends": "CSD\\Marketo\\Response"
+        },
+        "CSD\\Marketo\\Response\\CreateOrUpdateLeadsResponse": {
+            "type": "object",
+            "extends": "CSD\\Marketo\\Response"
+        },
+        "CSD\\Marketo\\Response\\DeleteLeadResponse": {
+            "type": "object",
+            "extends": "CSD\\Marketo\\Response"
+        },
+        "CSD\\Marketo\\Response\\GetLeadChanges": {
+            "type": "object",
+            "extends": "CSD\\Marketo\\Response"
+        },
+        "CSD\\Marketo\\Response\\GetLeadsResponse": {
+            "type": "object",
+            "extends": "CSD\\Marketo\\Response"
+        },
+        "CSD\\Marketo\\Response\\GetLeadResponse": {
+            "type": "object",
+            "extends": "CSD\\Marketo\\Response"
         }
     }
 }
